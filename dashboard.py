@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from apis import apod_generator
-import os
+import requests
 
 # input in terminal: streamlit run dashboard.py
 st.title("Water Quality Dashboard")
@@ -11,6 +10,7 @@ st.header("Internship Ready Software Development")
 st.subheader("Prof. Gregory Reis")
 st.divider()
 
+# Load CSV (must be in repo root)
 df = pd.read_csv("biscayneBay_waterquality.csv")
 
 # Clean column names (prevents subtle bugs)
@@ -54,36 +54,21 @@ with tab3:
 with tab4:
     st.warning("NASA's Astronomy Picture Of the Day")
 
-    url = "https://api.nasa.gov/planetary/apod?api_key=HbYkzkYIywGwqCOXAox9q0p3JtnPk6m3eZmnE7bW"
-    api_key = os.getenv("NASA_API_KEY", "DEMO_KEY")
+    # Use Streamlit secrets (or DEMO_KEY fallback)
+    api_key = st.secrets.get("NASA_API_KEY", "DEMO_KEY")
+    url = "https://api.nasa.gov/planetary/apod"
 
-    response = apod_generator(url, api_key)
+    try:
+        response = requests.get(url, params={"api_key": api_key})
+        response.raise_for_status()
+        data = response.json()
 
-    st.image(response["url"])
-    st.subheader(response["title"])
-    st.caption(response["date"])
-    st.write(response["explanation"])
+        if data.get("media_type") == "image":
+            st.image(data["url"])
 
-    # TODO: using the streamlit methods
-    # TODO: display teh APOD image and title and other features
+        st.subheader(data["title"])
+        st.caption(data["date"])
+        st.write(data["explanation"])
 
-load_dotenv(find_dotenv())
-
-NASA_API_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
-URL = "https://api.nasa.gov/planetary/apod?api_key=HbYkzkYIywGwqCOXAox9q0p3JtnPk6m3eZmnE7bW"
-print("NASA_API_KEY:", os.getenv("NASA_API_KEY"))
-
-def apod_generator(url, api_key):
-    params = {"api_key": api_key}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    return response.json()
-
-apod_data = apod_generator(URL, NASA_API_KEY)
-
-print(apod_data["title"])
-print(apod_data["hdurl"])
-print(apod_data["date"])
-print(apod_data["explanation"])
-
-
+    except Exception as e:
+        st.error(f"Error fetching NASA APOD: {e}")
